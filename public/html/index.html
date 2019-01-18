@@ -273,17 +273,25 @@
                             <p>${i.name}</p>
                             <p class="surplus">距离下次值班还剩<span>${i.days}</span>天</p>
                             <button onclick="clickName(${i.id})">删除</button>
-                            <button class="update" onclick="updateId(${i.id}, '${i.name}', '${i.description}')">修改</button>
                         </div>
                         `
                 } else {
-                    html = `
+                    if (i.description) {
+                        html = `
                         <div>
                             <p>${i.name}</p>
                             <button onclick="clickName(${i.id})">删除</button>
                             <button class="update" onclick="updateId(${i.id}, '${i.name}', '${i.description}')">修改</button>
                         </div>
                         `
+                    } else {
+                        html = `
+                        <div>
+                            <p>${i.name}</p>
+                            <button onclick="clickName(${i.id})">删除</button>
+                        </div>
+                        `
+                    }
                 }
                 list.innerHTML += html;
             })
