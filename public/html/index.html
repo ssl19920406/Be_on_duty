@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        .main{
+            width: 600px;
+            margin: 0 auto;
+        }
+        #list{
+            display: flex;
+            width: 600px;
+            flex-wrap: wrap;
+        }
+        #list >div{
+            flex: 1;
+            min-width: 98px;
+            border: 1px solid #00B7FF;
+            margin: 10px;
+        }
+        #list >div p{
+            text-align: center;
+        }
+        #list >div button{
+            float: right;
+        }
+        #list .surplus span{
+            font-size: 20px;
+            color: red;
+        }
+        #dutyUser{
+            width: 300px;
+            margin: 0 auto;
+        }
+        #dutyUser p{
+            line-height: 30px;
+            text-align: center;
+            margin: 0;
+            font-weight: 900;
+        }
+        #dutyUser p span{
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div>
+            <button class="time" onclick="queryDuty('zuot')">昨天</button>
+            <button class="time" onclick="queryDuty('jint')">今天</button>
+            <button class="time" onclick="queryDuty('mint')">明天</button>
+            <div id="dutyUser">
+
+            </div>
+        </div>
+        <div style="text-align: center">-----------------------------------------------------------</div>
+        <div style="text-align: center">值班顺序表</div>
+        <div>
+            <input id="lookup" placeholder="输入查询的名称">
+            <button onclick="lookgo()">查询</button>
+            <button onclick="addName()">
+                新增
+            </button>
+        </div>
+        <div id="list">
+
+        </div>
+        <div id="update">
+
+        </div>
+        <div id="add">
+
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script>
+        let userDataList = '', // 所有人的列表
+            currentData = '';  // 当前人
+
+        query();
+
+        // 查询值班人
+        function queryDuty(type) {
+            var myDate = new Date();
+            let mon = myDate.getMonth() + 1;
+            let date = myDate.getDate();
+            if(type === 'zuot') {
+                date = myDate.getDate() - 1;
+            } else if (type === 'mint') {
+                date = myDate.getDate() + 1;
+            }
+            let time = mon < 10 ? `2019-0${mon}-${date}` : `2019-${mon}-${date}`;
+            let length = userDataList.length,
+                newData = '',
+                current = '';
+            userDataList.forEach((i, index) => {
+                if (i.description && i.isComplete === 0) {
+                    let diff = getDays(time, i.description);
+                    current = index + diff;
+                    if (current > length - 1) {
+                        current = current - length;
+                    }
+                    newData = userDataList[current];
+                    currentData = newData;
+                    addDuty(newData, type);
+                }
+            })
+        }
+
+        // 当前值班人
+        function addDuty(newData, type) {
+            const list = document.getElementById('dutyUser');
+            list.innerHTML = '';
+            var html = `
+            <div>
+                <p>我是<span>${newData.name}</span>，</p>
+                <img src="../images/${type}.jpeg">
+            </div>
+            `
+            list.innerHTML += html;
+        }
+
+        // 查询所有接口
+        function query() {
+            const list = document.getElementById('update'),
+                listAdd = document.getElementById('add')
+            $.ajax({
+                type:'get',
+                url:'http://127.0.0.1:3000/frist/getUser',
+                dataType:"json",
+                success:function(data){
+                    userDataList = data;
+                    // 默认查询今天
+                    queryDuty('jint');
+                    addHtml(data, 'list');
+                    list.innerHTML = '';
+                    listAdd.innerHTML = '';
+                },
+                error:function(){
+                    console.log('error');
+                }
+            })
+        }
+
+        // 搜索单个方法
+        function lookgo() {
+            const look = document.getElementById('lookup').value;
+            if (look === '') {
+                query()
+            } else {
+                $.ajax({
+                    type:'get',
+                    url:'http://127.0.0.1:3000/frist/search?name=' + look,
+                    success:function(data){
+                        let lookIndex = '', // 查询人的坐标
+                            nowIndex = '',  // 当前值班人的坐标
+                            diffIndex = '';
+                        userDataList.forEach((i, index) => {
+                            if (i.id === data.id) {
+                                lookIndex = index;
+                            }
+                            if (i.id === currentData.id) {
+                                nowIndex = index;
+                            }
+                        });
+                        if (lookIndex - nowIndex < 0) {
+                            diffIndex = (lookIndex - nowIndex) + userDataList.length;
+                        } else {
+                            diffIndex = lookIndex - nowIndex;
+                        }
+                        data.days = diffIndex;
+                        let data1 = [];
+                        data1.push(data);
+                        addHtml(data1, 'list', 1);
+                    },
+                    error:function(){
+                        console.log('error');
+                    }
+                })
+            }
+        }
+
+        // 删除用户
+        function clickName(type) {
+            console.log(type);
+            $.ajax({
+                type:'get',
+                url:'http://127.0.0.1:3000/frist/delete?id=' + type,
+                success:function(data){
+                    console.log(data);
+                    query();
+                },
+                error:function(){
+                    console.log('error');
+                }
+            })
+        }
+
+        // 修改用户
+        function updateId(id, name, time) {
+            const list = document.getElementById('update');
+            var html = `
+                <div>
+                    <input id="updateName" value="${name}" />
+                    <input id="time" type="date" value="${time}" />
+                    <button onclick="keepName(${id})">保存</button>
+                </div>
+                `
+            list.innerHTML = html;
+        }
+
+        // 保存修改用户
+        function keepName(id) {
+            let name = document.getElementById('updateName').value;
+            let time = document.getElementById('time').value;
+            const task = {
+                id: id,
+                name: name,
+                description: time
+            };
+            $.ajax({
+                type:'get',
+                url:'http://127.0.0.1:3000/frist/update',
+                data: task,
+                success:function(data){
+                    console.log(data);
+                    query();
+                },
+                error:function(){
+                    console.log('error');
+                }
+            })
+        }
+
+        // 新增用户
+        function addName() {
+            const add = document.getElementById('add');
+            var html = `
+                <div>
+                    <input id="takeName" />
+                    <button onclick="addTake()">保存</button>
+                </div>
+                `
+            add.innerHTML = html;
+        }
+
+        // 保存新增用户
+        function addTake() {
+            const name = document.getElementById('takeName').value;
+            $.ajax({
+                type:'get',
+                url:'http://127.0.0.1:3000/frist/create?name=' + name,
+                success:function(data){
+                    console.log(data);
+                    query();
+                },
+                error:function(){
+                    console.log('error');
+                }
+            })
+        }
+
+        // 给页面添加列表`
+        function addHtml(data, id, type) {
+            const list = document.getElementById(id);
+            list.innerHTML = '';
+            data.forEach(i => {
+                var html = '';
+                if (type) {
+                    html = `
+                        <div>
+                            <p>${i.name}</p>
+                            <p class="surplus">距离下次值班还剩<span>${i.days}</span>天</p>
+                            <button onclick="clickName(${i.id})">删除</button>
+                            <button class="update" onclick="updateId(${i.id}, '${i.name}', '${i.description}')">修改</button>
+                        </div>
+                        `
+                } else {
+                    html = `
+                        <div>
+                            <p>${i.name}</p>
+                            <button onclick="clickName(${i.id})">删除</button>
+                            <button class="update" onclick="updateId(${i.id}, '${i.name}', '${i.description}')">修改</button>
+                        </div>
+                        `
+                }
+                list.innerHTML += html;
+            })
+        }
+
+        // 计算时间差
+        function getDays(strDateStart,strDateEnd){
+            var strSeparator = "-"; //日期分隔符
+            var oDate1;
+            var oDate2;
+            var iDays;
+            oDate1= strDateStart.split(strSeparator);
+            oDate2= strDateEnd.split(strSeparator);
+            var strDateS = new Date(oDate1[0], oDate1[1]-1, oDate1[2]);
+            var strDateE = new Date(oDate2[0], oDate2[1]-1, oDate2[2]);
+
+            iDays = (strDateS - strDateE ) / 1000 / 60 / 60 /24//把相差的毫秒数转换为天数
+
+            return iDays ;
+        }
+
+    </script>
+    <!--<script src="../javascripts/index.js"></script>-->
+</body>
+</html>
