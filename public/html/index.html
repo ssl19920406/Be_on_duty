@@ -99,7 +99,7 @@
                     let diff = getDays(time, i.description);
                     current = index + diff;
                     if (current > length - 1) {
-                        current = current - length;
+                        current = current % length;
                     }
                     newData = userDataList[current];
                     currentData = newData;
@@ -124,7 +124,7 @@
         // 查询所有接口
         function query() {
             const list = document.getElementById('update'),
-                listAdd = document.getElementById('add')
+                listAdd = document.getElementById('add');
             $.ajax({
                 type:'get',
                 url:'http://127.0.0.1:3000/frist/getUser',
